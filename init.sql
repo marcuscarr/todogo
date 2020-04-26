@@ -6,7 +6,7 @@ CREATE DATABASE marcus_demo;
 CREATE SEQUENCE IF NOT EXISTS todo_id_seq;
 CREATE TABLE todos (
     "id" INTEGER NOT NULL DEFAULT nextval('todo_id_seq'::regclass),
-    "title" VARCHAR(255) NOT NULL,
+    "title" TEXT,
     "description" TEXT,
     "status" BOOLEAN,
     "created" TIMESTAMP(0),
