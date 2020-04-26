@@ -6,33 +6,32 @@ import (
 
 	"github.com/gorilla/mux"
 
-	// PostgreSQL driver
 	"github.com/jmoiron/sqlx"
+	// PostgreSQL driver
 	_ "github.com/lib/pq"
 )
 
-func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "hello world"}`))
+// Config are the server parameters
+type Config struct {
+	Port       int
+	DBHost     string
+	DBPort     int
+	DBUser     string
+	DBPassword string
+	DBName     string
 }
 
-const (
-	host     = "localhost"
-	port     = 5432
-	user     = "postgres"
-	password = "mysecretpassword"
-	dbname   = "postgres"
-)
-
+// Server holds the http router and the database handle
 type Server struct {
+	cfg    Config
 	router *mux.Router
 	db     *sqlx.DB
 }
 
+// Start connects to the database and serves the endpoint
 func (s *Server) Start() error {
 	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
+		s.cfg.DBHost, s.cfg.DBPort, s.cfg.DBUser, s.cfg.DBPassword, s.cfg.DBName)
 	db, err := sqlx.Connect("postgres", connStr)
 	if err != nil {
 		return err
@@ -43,16 +42,24 @@ func (s *Server) Start() error {
 	}
 	s.db = db
 
-	return http.ListenAndServe(":8080", s.router)
+	s.router.HandleFunc("/_status", s.statusCheck)
+	s.router.HandleFunc("/todo", s.createTodo).Methods("POST")
+	s.router.HandleFunc("/todos/{id}", s.getOneTodo).Methods("GET")
+	s.router.HandleFunc("/todos/{id}", s.upsertTodo).Methods("PUT")
+	s.router.HandleFunc("/todos/{id}", s.updateTodo).Methods("PATCH")
+	s.router.HandleFunc("/todos/{id}", s.deleteTodo).Methods("DELETE")
+	s.router.HandleFunc("/todos", s.getAllTodos).Methods("GET")
+
+	return http.ListenAndServe(fmt.Sprintf(":%d", s.cfg.Port), s.router)
 }
 
-// New returns a server
-func New() *Server {
+// New returns a new server
+func New(cfg Config) *Server {
 	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/health-check", healthCheckHandler)
-
 	s := Server{
+		cfg:    cfg,
 		router: router,
 	}
+
 	return &s
 }

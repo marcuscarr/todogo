@@ -1,8 +1,9 @@
 package todo
 
 import (
-	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -10,11 +11,11 @@ import (
 
 // Todo is a task to be done
 type Todo struct {
-	ID          int64     `db:"id"`
-	Title       string    `db:"title"`
-	Description string    `db:"description"`
+	ID          int       `db:"id"`
+	Title       string    `db:"title,omitempty"`
+	Description string    `db:"description,omitempty"`
 	Status      bool      `db:"status"`
-	Created     time.Time `db:"created"`
+	Created     time.Time `db:"created,omitempty"`
 	Modified    time.Time `db:"modified"`
 }
 
@@ -30,112 +31,113 @@ func new(title string, desc string) Todo {
 }
 
 // Create adds a new To-Do to the database and returns its id
-func Create(db *sqlx.DB, title string, desc string) (int64, error) {
-	todo := new(title, desc)
-	sqlStatement := `
-		INSERT INTO todos (title, description, created, modified)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id`
-	var id int64 = -1
-	err := db.QueryRow(sqlStatement, todo.Title, todo.Description, todo.Created, todo.Modified).Scan(&id)
-	if err != nil {
-		return id, err
+func Create(db *sqlx.DB, id *int, title *string, desc *string, status *bool) (int, error) {
+	var newTitle, newDesc string
+	if title != nil {
+		newTitle = *title
 	}
-	return id, nil
+	if desc != nil {
+		newDesc = *desc
+	}
+	todo := new(newTitle, newDesc)
+	sqlFields := []string{"title", "description", "created", "modified"}
+	if id != nil {
+		sqlFields = append(sqlFields, "id")
+		todo.ID = *id
+	}
+	if status != nil {
+		sqlFields = append(sqlFields, "status")
+		todo.Status = *status
+	}
+	sqlStatement := fmt.Sprintf(`
+		INSERT INTO todos (%s)
+		VALUES (%s)
+		RETURNING id;`,
+		strings.Join(sqlFields, ", "),
+		strings.Join(prepend(sqlFields, ":"), ", "),
+	)
+	newID := -1
+	res, err := db.NamedQuery(sqlStatement, todo)
+	if err != nil {
+		return newID, err
+	}
+	for res.Next() {
+		err = res.Scan(&newID)
+		if newID == -1 {
+			return newID, fmt.Errorf("unknown error creating todo:%s", err)
+		}
+	}
+	return newID, nil
 }
 
 // Retrieve returns the To-Do with the supplied ID, if it exists
-func Retrieve(db *sqlx.DB, id int64) (*Todo, error) {
-	var todo *Todo
+func Retrieve(db *sqlx.DB, id int) (*Todo, error) {
+	todo := Todo{}
 	sqlStatement := `
 		SELECT * FROM todos WHERE id=$1`
-	err := db.Get(todo, sqlStatement, id)
-	if err == nil {
-		return todo, nil
+	err := db.Get(&todo, sqlStatement, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
 	}
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	return nil, err
+	return &todo, nil
 }
 
 // Update modifies the To-Do that matches the supplied ID
-func Update(ctx context.Context, db *sqlx.DB, id int64, title *string, desc *string, status *bool) error {
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
+func Update(db *sqlx.DB, id int, title *string, desc *string, status *bool) (int, error) {
+	sqlStatement := `
+		UPDATE todos 
+		SET`
 
 	updated := false
+	update := Todo{ID: id}
 	if title != nil {
-		err = updateTitle(tx, id, *title)
-		if err != nil {
-			return err
-		}
+		sqlStatement += " title=:title,"
+		update.Title = *title
 		updated = true
 	}
 	if desc != nil {
-		err = updateDesc(tx, id, *desc)
-		if err != nil {
-			return err
-		}
+		sqlStatement += " description=:description,"
+		update.Description = *desc
 		updated = true
 	}
 	if status != nil {
-		err = updateStatus(tx, id, *status)
-		if err != nil {
-			return err
-		}
+		sqlStatement += " status=:status,"
+		update.Status = *status
 		updated = true
 	}
-	if updated {
-		err = updateModified(tx, id, time.Now())
-		if err != nil {
-			return err
-		}
+	if !updated {
+		return 0, nil
 	}
-	err = tx.Commit()
-	return err
+	sqlStatement += " modified=:modified"
+	update.Modified = time.Now()
+	sqlStatement += " WHERE id=:id"
+	res, err := db.NamedExec(sqlStatement, update)
+	if err != nil {
+		return 0, err
+	}
+	count, err := res.RowsAffected()
+	return int(count), err
 }
 
-func updateTitle(tx *sql.Tx, id int64, title string) error {
-	sqlStatement := `
-	UPDATE todos
-	SET title = $2
-	WHERE id = $1;`
-	_, err := tx.Exec(sqlStatement, id, title)
-	return err
-}
-
-func updateDesc(tx *sql.Tx, id int64, desc string) error {
-	sqlStatement := `
-	UPDATE todos
-	SET desc = $2
-	WHERE id = $1;`
-	_, err := tx.Exec(sqlStatement, id, desc)
-	return err
-}
-
-func updateStatus(tx *sql.Tx, id int64, status bool) error {
-	sqlStatement := `
-	UPDATE todos
-	SET status = $2
-	WHERE id = $1;`
-	_, err := tx.Exec(sqlStatement, id, status)
-	return err
-}
-
-func updateModified(tx *sql.Tx, id int64, mod time.Time) error {
-	sqlStatement := `
-	UPDATE todos
-	SET modified = $2
-	WHERE id = $1;`
-	_, err := tx.Exec(sqlStatement, id, mod)
-	return err
+// Upsert will update a To-Do, if it exists, and create it otherwise. If a new To-Do is
+// created, it returns the ID. Otherwise, it returns -1.
+func Upsert(db *sqlx.DB, id int, title *string, desc *string, status *bool) (int, error) {
+	count, err := Update(db, id, title, desc, status)
+	if err != nil {
+		return -1, err
+	}
+	if count == 1 {
+		// The To-Do exists
+		return -1, nil
+	}
+	return Create(db, &id, title, desc, status)
 }
 
 // Delete removes the To-Do that matches the supplied ID
-func Delete(db *sqlx.DB, id int64) (int64, error) {
+func Delete(db *sqlx.DB, id int) (int, error) {
 	sqlStatement := `
 	DELETE FROM todos
 	WHERE id = $1;`
@@ -144,5 +146,22 @@ func Delete(db *sqlx.DB, id int64) (int64, error) {
 		return 0, err
 	}
 	count, err := res.RowsAffected()
-	return count, err
+	return int(count), err
+}
+
+// GetAll retrieves all To-Dos
+func GetAll(db *sqlx.DB) ([]Todo, error) {
+	var todos []Todo
+	sqlStatement := `
+		SELECT * FROM todos`
+	err := db.Get(todos, sqlStatement)
+	return todos, err
+}
+
+func prepend(str []string, prefix string) []string {
+	res := make([]string, len(str))
+	for idx, s := range str {
+		res[idx] = prefix + s
+	}
+	return res
 }

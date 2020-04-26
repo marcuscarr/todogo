@@ -8,7 +8,7 @@ CREATE TABLE todos (
     "id" INTEGER NOT NULL DEFAULT nextval('todo_id_seq'::regclass),
     "title" VARCHAR(255) NOT NULL,
     "description" TEXT,
-    "status" BOOLEAN
+    "status" BOOLEAN,
     "created" TIMESTAMP(0),
     "modified" TIMESTAMP(0),
     PRIMARY KEY ("id")
