@@ -36,10 +36,6 @@ func (s *Server) Start() error {
 	if err != nil {
 		return err
 	}
-	err = db.Ping()
-	if err != nil {
-		return err
-	}
 	s.db = db
 
 	s.router.HandleFunc("/_status", s.statusCheck)

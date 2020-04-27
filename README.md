@@ -28,7 +28,7 @@ Each To-Do is stored as a row in a PostgreSQL database.
 | /todo       | POST   | `{ "id": id }`              | Creates a To-Do and returns its ID. The JSON payload can include "Title" (string), "Description" (string), and "Status" (boolean, defaults to `false`). |
 | /todos      | GET    | []ToDo                      | Returns all the To-Dos as a JSON array. |
 | /todos/{id} | GET    | ToDo                        | Returns the To-Do with that ID as JSON. |
-| /todos/{id} | PUT    | `{ "id": id }`              | Updates the To-Do with that ID, or creates a new one. The JSON payload can include "Title" (string), "Description" (string), and "Status" (boolean, optional). |
+| /todos/{id} | PUT    | `{ "id": id }`              | Updates the To-Do with that ID, or creates a new one. The JSON payload can include "Title" (string), "Description" (string), and "Status" (boolean, optional). Any fields not set will use their default. |
 | /todos/{id} | PATCH  | `{ "updated": count }`      | Updates the To-Do with that ID. The JSON payload should include "Title" (string), "Description" (string), and "Status" (boolean, optional). |
 | /todos/{id} | DELETE | `{ "deleted": count }`      | Deletes the To-Do with that ID. Returns the count of deleted To-Dos (currently 0 or 1). |
 
@@ -39,7 +39,7 @@ For GET and PATCH, a 404 error is returned if there is no To-Do with that ID.
 * add filters and sorting to the `/todos` endpoint
 * decide whether Title should be a required field
 * consider PUT/DELETE at `/todo/{id}/done` as a way to toggle the status
-* cleaner REST API documentation (Swagger?)
+* create formal REST API documentation (Swagger?, OpenAPI?)
 * prettier schema documentation
 * don't have the database password in plain text in the repo
 * add unit and API tests

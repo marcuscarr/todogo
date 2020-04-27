@@ -48,6 +48,12 @@ func Create(db *sqlx.DB, id *int, title *string, desc *string, status *bool) (in
 	if status != nil {
 		todo.Status = *status
 	}
+	newID := -1
+	// Need to first ensure that the ID generator will give a valid ID.
+	_, err := db.Exec("SELECT setval('todo_id_seq',(SELECT GREATEST(MAX(id)+1,nextval('todo_id_seq'))-1 FROM todos));")
+	if err != nil {
+		return newID, err
+	}
 	sqlStatement := fmt.Sprintf(`
 		INSERT INTO todos (%s)
 		VALUES (%s)
@@ -55,7 +61,6 @@ func Create(db *sqlx.DB, id *int, title *string, desc *string, status *bool) (in
 		strings.Join(sqlFields, ", "),
 		strings.Join(prepend(sqlFields, ":"), ", "),
 	)
-	newID := -1
 	res, err := db.NamedQuery(sqlStatement, todo)
 	if err != nil {
 		return newID, err
@@ -74,7 +79,7 @@ func Retrieve(db *sqlx.DB, id int) (*Todo, error) {
 	todo := Todo{}
 	sqlStatement := `
 		SELECT * FROM todos WHERE id=$1`
-	err := db.Get(&todo, sqlStatement, id)
+	err := db.QueryRowx(sqlStatement, id).StructScan(&todo)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -121,16 +126,31 @@ func Update(db *sqlx.DB, id int, title *string, desc *string, status *bool) (int
 	return int(count), err
 }
 
+func replace(db *sqlx.DB, id int, titlep *string, descp *string, statusp *bool) (int, error) {
+	var title, desc string
+	var status bool
+	if titlep != nil {
+		title = *titlep
+	}
+	if descp != nil {
+		desc = *descp
+	}
+	if statusp != nil {
+		status = *statusp
+	}
+	return Update(db, id, &title, &desc, &status)
+}
+
 // Upsert will update a To-Do, if it exists, and create it otherwise. If a new To-Do is
 // created, it returns the ID. Otherwise, it returns -1.
 func Upsert(db *sqlx.DB, id int, title *string, desc *string, status *bool) (int, error) {
-	count, err := Update(db, id, title, desc, status)
+	count, err := replace(db, id, title, desc, status)
 	if err != nil {
 		return -1, err
 	}
 	if count == 1 {
 		// The To-Do exists
-		return -1, nil
+		return id, nil
 	}
 	return Create(db, &id, title, desc, status)
 }
@@ -153,7 +173,7 @@ func GetAll(db *sqlx.DB) ([]Todo, error) {
 	var todos []Todo
 	sqlStatement := `
 		SELECT * FROM todos`
-	err := db.Get(todos, sqlStatement)
+	err := db.Select(&todos, sqlStatement)
 	return todos, err
 }
 

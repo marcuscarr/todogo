@@ -83,6 +83,7 @@ func (s *Server) updateTodo(w http.ResponseWriter, r *http.Request) {
 	if count == 0 {
 		log.Print("did not find todo with id:", id)
 		w.WriteHeader(http.StatusNotFound)
+		return
 	}
 	res := map[string]int{"updated": count}
 	log.Print("updated todo; sending result:", res)
@@ -114,6 +115,7 @@ func (s *Server) upsertTodo(w http.ResponseWriter, r *http.Request) {
 	log.Print("upserted todo; sending result:", res)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(res)
 }
 
 func (s *Server) deleteTodo(w http.ResponseWriter, r *http.Request) {
