@@ -61,4 +61,4 @@ To work on the application, you will need an instance of Postgres. The simplest 
 
         $ docker-compose -f docker-compose.yml up -d
 
-The app is accessible at port `:8180`.
+The app is accessible at port `:8080`.

@@ -14,6 +14,6 @@ ENV DB_HOST "db"
 
 WORKDIR /app
 COPY --from=build /app/main main
-EXPOSE 8180
+EXPOSE 8080
 
 CMD ["./main"]

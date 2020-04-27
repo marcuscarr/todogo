@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	port     = 8180
+	port     = 8080
 	dbhost   = "localhost"
 	dbport   = 5432
 	dbuser   = "postgres"

@@ -49,8 +49,8 @@ func Create(db *sqlx.DB, id *int, title *string, desc *string, status *bool) (in
 		todo.Status = *status
 	}
 	newID := -1
-	// Need to first ensure that the ID generator will give a valid ID.
-	_, err := db.Exec("SELECT setval('todo_id_seq',(SELECT GREATEST(MAX(id)+1,nextval('todo_id_seq'))-1 FROM todos));")
+	// // Need to first ensure that the ID generator will give a valid ID.
+	_, err := db.Exec("SELECT setval('todo_id_seq', (SELECT MAX(id) FROM todos));")
 	if err != nil {
 		return newID, err
 	}
