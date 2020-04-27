@@ -10,14 +10,16 @@ services:
     environment:
       POSTGRES_PASSWORD: mysecretpassword
 
-  app:
-    image: todogo
-    restart: always
-    ports:
-      - 8080:8080
-
   adminer:
     image: adminer
     restart: always
     ports:
       - 8180:8080
+
+  app:
+    build: .
+    restart: always
+    ports:
+      - 8080:8080
+    
+    

@@ -51,7 +51,7 @@ To work on the application, you will need an instance of Postgres. The simplest 
     $ docker run --name db -e POSTGRES_PASSWORD=mysecretpassword -p 5432:5432 -d postgres
     $ psql -h localhost -U postgres -f init.sql
 
-## Running for use
+## Running locally for use
 
 1. Build the ToDoGo Docker image:
 
@@ -62,3 +62,21 @@ To work on the application, you will need an instance of Postgres. The simplest 
         $ docker-compose -f docker-compose.yml up -d
 
 The app is accessible at port `:8080`.
+
+## Running on GCP
+
+1. Connect to the VM via SSH.
+
+2. Start up the docker-compose container:
+```sh
+$ docker run docker/compose:1.25.5 version
+```
+
+3. Start up the Todogo service:
+```sh
+$ docker run --rm \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v "$PWD:$PWD" \
+    -w="$PWD" \
+    docker/compose:1.25.5 up -d
+```
