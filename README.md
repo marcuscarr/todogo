@@ -42,6 +42,7 @@ For GET and PATCH, a 404 error is returned if there is no To-Do with that ID.
 * cleaner REST API documentation (Swagger?)
 * prettier schema documentation
 * don't have the database password in plain text in the repo
+* add unit and API tests
 
 ## Running for development
 

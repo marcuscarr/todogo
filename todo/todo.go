@@ -12,10 +12,10 @@ import (
 // Todo is a task to be done
 type Todo struct {
 	ID          int       `db:"id"`
-	Title       string    `db:"title,omitempty"`
-	Description string    `db:"description,omitempty"`
+	Title       string    `db:"title"`
+	Description string    `db:"description"`
 	Status      bool      `db:"status"`
-	Created     time.Time `db:"created,omitempty"`
+	Created     time.Time `db:"created"`
 	Modified    time.Time `db:"modified"`
 }
 
@@ -40,13 +40,12 @@ func Create(db *sqlx.DB, id *int, title *string, desc *string, status *bool) (in
 		newDesc = *desc
 	}
 	todo := new(newTitle, newDesc)
-	sqlFields := []string{"title", "description", "created", "modified"}
+	sqlFields := []string{"title", "description", "created", "modified", "status"}
 	if id != nil {
 		sqlFields = append(sqlFields, "id")
 		todo.ID = *id
 	}
 	if status != nil {
-		sqlFields = append(sqlFields, "status")
 		todo.Status = *status
 	}
 	sqlStatement := fmt.Sprintf(`

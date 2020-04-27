@@ -25,7 +25,12 @@ func (s *Server) getOneTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t, err := todo.Retrieve(s.db, id)
-	if err != nil || t == nil {
+	if err != nil {
+		log.Print("error find todo with id:", id, " err:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if t == nil {
 		log.Print("did not find todo with id:", id)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -43,7 +48,7 @@ func (s *Server) createTodo(w http.ResponseWriter, r *http.Request) {
 		returnError(w, r, err)
 		return
 	}
-	id, err := todo.Create(s.db, nil, req.Title, req.Description, nil)
+	id, err := todo.Create(s.db, nil, req.Title, req.Description, req.Status)
 	if err != nil {
 		log.Print("error creating todo:", err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -79,7 +84,7 @@ func (s *Server) updateTodo(w http.ResponseWriter, r *http.Request) {
 		log.Print("did not find todo with id:", id)
 		w.WriteHeader(http.StatusNotFound)
 	}
-	res := map[string]int{"count": count}
+	res := map[string]int{"updated": count}
 	log.Print("updated todo; sending result:", res)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
